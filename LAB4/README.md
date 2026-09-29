@@ -6,30 +6,31 @@
 - **Lớp:** 11_TMĐT
 
 ## 1. PHIÊN BẢN MÔI TRƯỜNG
-- **Máy thật (Host):** Windows 10
-- **Phần mềm ảo hóa:** VirtualBox
-- **Máy quét (VM 1):** Kali Linux
-- **Máy đích (VM 2):** Metasploitable 2
+- **Máy thật (Host):** Windows 10 x64.
+- **Phần mềm ảo hóa:** VMware Workstation.
+- **Máy quét (VM 1):** Kali Linux.
+- **Máy đích (VM 2):** Windows 10 x64.
 
 ## 2. CÁCH DỰNG MÔI TRƯỜNG
-- Tạo mạng nội bộ (Host-Only Network) trên VirtualBox với dải IP `192.168.56.0/24`[cite: 9].
-- Cấu hình Network Adapter của cả Kali Linux và Metasploitable 2 sang chế độ **Host-Only Adapter**[cite: 9].
-- Tuyệt đối không dùng chế độ NAT hay Bridged trong quá trình quét để đảm bảo mạng khép kín, không gây ảnh hưởng ra bên ngoài[cite: 9].
+- Tạo mạng nội bộ thông qua Virtual Network Editor (VMnet1 - Host-only) với dải IP `192.168.56.0/24`.
+- Cấu hình Network Adapter của cả hai máy ảo Kali Linux và Windows 10 sang chế độ **Custom: VMnet1 (Host-only)**. Tuyệt đối không dùng NAT hay Bridged để đảm bảo cách ly an toàn.
+- Tạm thời tắt Windows Defender Firewall trên máy đích để kiểm tra kết nối ping ban đầu.
 
 ## 3. CÁC TÌNH HUỐNG ĐÃ THỰC HIỆN
-- [x] **Host Discovery:** Dùng lệnh `-sn` để quét và phát hiện các host đang hoạt động trong mạng[cite: 9].
-- [x] **Quét cổng TCP:** Thực hiện khảo sát qua các kỹ thuật TCP Connect (`-sT`), SYN Scan (`-sS`), FIN/Xmas/NULL (`-sF`, `-sX`, `-sN`), và ACK Scan (`-sA`)[cite: 9].
-- [x] **Quét cổng UDP:** Quét 20 cổng UDP phổ biến nhất bằng lệnh `-sU --top-ports 20`[cite: 9].
-- [x] **Nhận diện dịch vụ và OS:** Chạy lệnh nhận diện phiên bản dịch vụ (`-sV`), hệ điều hành (`-O`) và quét tổng hợp Aggressive (`-A`)[cite: 9].
-- [x] **Quét bằng NSE:** Khai thác thông tin SMB qua script `smb-os-discovery` và kiểm tra lỗ hổng MS17-010 bằng `smb-vuln-ms17-010`[cite: 9].
-- [x] **Xuất báo cáo (Log):** Xuất log dưới dạng văn bản thường (`-oN`), XML (`-oX`), Grepable (`-oG`) và dùng công cụ `xsltproc` để chuyển đổi XML sang HTML[cite: 9].
-- [x] **Tình huống Hardening:** Thực hiện quét đối chiếu (Before/After) trước và sau khi thay đổi cấu hình bảo mật (tắt dịch vụ/bật firewall)[cite: 9].
+- [x] **Host Discovery:** Dùng lệnh `-sn` phát hiện các host đang hoạt động (nhận diện MAC Address thuộc VMware).
+- [x] **Quét cổng TCP:** Thực hiện quét cổng tàng hình qua kỹ thuật TCP SYN Scan (`-sS`).
+- [x] **Nhận diện dịch vụ và OS:** Dùng lệnh `-sV` và `-A` để xác định chi tiết phần mềm, phiên bản dịch vụ và hệ điều hành.
+- [x] **Quét bằng NSE:** Khai thác thông tin từ dịch vụ SMB ở cổng 445 bằng script `smb-os-discovery`.
+- [x] **Xuất báo cáo (Log):** Xuất log dưới dạng văn bản thường qua cờ `-oN` để làm hồ sơ bằng chứng.
+- [x] **Tình huống Hardening:** Thực hiện quét đối chiếu trước và sau khi kích hoạt lại Windows Defender Firewall. Kết quả xác nhận 1000 cổng quét mặc định đã chuyển sang trạng thái `filtered` do `no-response`.
 
 ## 4. KẾT QUẢ
-- **Đánh giá:** PASS (Đã thực hiện đủ các lệnh, log output khớp timestamp và đã làm sạch file trước khi tải lên).
+- **Đánh giá:** PASS (Đã thực hiện đủ các lệnh yêu cầu, môi trường cô lập an toàn, log output khớp thời gian thực).
 
 ## 5. LỖI GẶP PHẢI VÀ CÁCH KHẮC PHỤC
-
-  - **Cách khắc phục:** Vào Settings của VirtualBox kiểm tra, đảm bảo cả 2 máy ảo đều dùng chung adapter `192.168.56.x` và tắt NAT[cite: 9].
-- **Lỗi 3:** Báo lỗi "No such file" khi xuất file HTML bằng `xsltproc`[cite: 9].
-  - **Cách khắc phục:** Cần phải chạy lệnh Nmap có cờ `-oX` để xuất ra file XML thành công trước, sau đó mới có dữ liệu đầu vào cho lệnh `xsltproc`[cite: 9].
+- **Lỗi 1:** Bị từ chối quyền (Permission denied) khi quét SYN scan.
+  - **Khắc phục:** Cấp quyền quản trị bằng cách thêm `sudo` vào trước lệnh Nmap.
+- **Lỗi 2:** Quét ra 0 hosts hoặc báo lỗi `Unable to split netmask from target expression`.
+  - **Khắc phục:** Lỗi cú pháp do gõ dư dấu gạch chéo `/` ở cuối địa chỉ IP (VD: `192.168.56.129/`). Đã xóa ký tự thừa và thực thi quét thành công.
+- **Lỗi 3:** Ping từ máy quét sang máy đích bị request timeout.
+  - **Khắc phục:** Tường lửa của máy đích đang chặn gói tin ICMP. Vào Windows Defender Firewall tắt cấu hình chặn mạng Private/Public để thông mạng thực hành.oX` để xuất ra file XML thành công trước, sau đó mới có dữ liệu đầu vào cho lệnh `xsltproc`[cite: 9].
